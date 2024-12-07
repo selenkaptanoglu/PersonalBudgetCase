@@ -1,12 +1,24 @@
-import SideNav from '@/app/ui/dashboard/sidenav';
+import React from 'react';
+import { AppProvider } from './../context/AppContext';
+import { lusitana } from '@/app/ui/fonts';
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+    children,
+}: {
+    children: React.ReactNode;
+}) {
     return (
-        <div className="flex h-screen flex-col md:flex-row md:overflow-hidden">
-            <div className="w-full flex-none md:w-64">
-                <SideNav />
-            </div>
-            <div className="flex-grow p-6 md:overflow-y-auto md:p-12">{children}</div>
-        </div>
+        <html lang="en">
+            <head>
+                <meta charSet="UTF-8" />
+                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                <title>Your App</title>
+            </head>
+            <body className={lusitana.className}>
+                <AppProvider>
+                    {children} {/* AppProvider ile sararak children'ı render edin */}
+                </AppProvider>
+            </body>
+        </html>
     );
 }

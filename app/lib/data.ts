@@ -11,15 +11,20 @@ import { formatCurrency } from './utils';
 
 export async function fetchRevenue() {
   try {
-    // Artificially delay a response for demo purposes.
-    // Don't do this in production :)
+    console.log('Fetching revenue data...');
+    await new Promise((resolve) => setTimeout(resolve, 3000));
 
-    // console.log('Fetching revenue data...');
-    // await new Promise((resolve) => setTimeout(resolve, 3000));
+    const cachedRevenue = localStorage.getItem('revenueData');
+
+    console.log('Data fetch completed after 3 seconds.');
+
+    if (cachedRevenue) {
+      return JSON.parse(cachedRevenue);
+    }
 
     const data = await sql<Revenue>`SELECT * FROM revenue`;
 
-    // console.log('Data fetch completed after 3 seconds.');
+    localStorage.setItem('revenueData', JSON.stringify(data.rows));
 
     return data.rows;
   } catch (error) {
@@ -30,6 +35,12 @@ export async function fetchRevenue() {
 
 export async function fetchLatestInvoices() {
   try {
+    const cachedInvoices = localStorage.getItem('latestInvoices');
+
+    if (cachedInvoices) {
+      return JSON.parse(cachedInvoices);
+    }
+
     const data = await sql<LatestInvoiceRaw>`
       SELECT invoices.amount, customers.name, customers.image_url, customers.email, invoices.id
       FROM invoices
@@ -41,6 +52,9 @@ export async function fetchLatestInvoices() {
       ...invoice,
       amount: formatCurrency(invoice.amount),
     }));
+
+    localStorage.setItem('latestInvoices', JSON.stringify(latestInvoices));
+
     return latestInvoices;
   } catch (error) {
     console.error('Database Error:', error);
@@ -50,9 +64,14 @@ export async function fetchLatestInvoices() {
 
 export async function fetchCardData() {
   try {
-    // You can probably combine these into a single SQL query
-    // However, we are intentionally splitting them to demonstrate
-    // how to initialize multiple queries in parallel with JS.
+
+    const cachedCardData = localStorage.getItem('cardData');
+
+    if (cachedCardData) {
+
+      return JSON.parse(cachedCardData);
+    }
+
     const invoiceCountPromise = sql`SELECT COUNT(*) FROM invoices`;
     const customerCountPromise = sql`SELECT COUNT(*) FROM customers`;
     const invoiceStatusPromise = sql`SELECT
@@ -71,12 +90,17 @@ export async function fetchCardData() {
     const totalPaidInvoices = formatCurrency(data[2].rows[0].paid ?? '0');
     const totalPendingInvoices = formatCurrency(data[2].rows[0].pending ?? '0');
 
-    return {
+    const cardData = {
       numberOfCustomers,
       numberOfInvoices,
       totalPaidInvoices,
       totalPendingInvoices,
     };
+
+
+    localStorage.setItem('cardData', JSON.stringify(cardData));
+
+    return cardData;
   } catch (error) {
     console.error('Database Error:', error);
     throw new Error('Failed to fetch card data.');
@@ -84,13 +108,21 @@ export async function fetchCardData() {
 }
 
 const ITEMS_PER_PAGE = 6;
-export async function fetchFilteredInvoices(
-  query: string,
-  currentPage: number,
-) {
+export async function fetchFilteredInvoices(query: string, currentPage: number) {
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
 
   try {
+
+    const cacheKey = `filteredInvoices-${query}-${currentPage}`;
+
+
+    const cachedInvoices = localStorage.getItem(cacheKey);
+
+    if (cachedInvoices) {
+
+      return JSON.parse(cachedInvoices);
+    }
+
     const invoices = await sql<InvoicesTable>`
       SELECT
         invoices.id,
@@ -112,7 +144,17 @@ export async function fetchFilteredInvoices(
       LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}
     `;
 
-    return invoices.rows;
+
+    const filteredInvoices = invoices.rows.map((invoice) => ({
+      ...invoice,
+      amount: formatCurrency(invoice.amount),
+    }));
+
+
+    localStorage.setItem(cacheKey, JSON.stringify(filteredInvoices));
+
+
+    return filteredInvoices;
   } catch (error) {
     console.error('Database Error:', error);
     throw new Error('Failed to fetch invoices.');
@@ -154,7 +196,7 @@ export async function fetchInvoiceById(id: string) {
 
     const invoice = data.rows.map((invoice) => ({
       ...invoice,
-      // Convert amount from cents to dollars
+
       amount: invoice.amount / 100,
     }));
 
